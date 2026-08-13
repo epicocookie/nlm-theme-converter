@@ -1,0 +1,118 @@
+name: Apply V4 feedback and cap
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch quiz feedback and file limits
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          enhancer = Path('enhancer.js')
+          s = enhancer.read_text(encoding='utf-8')
+          pattern = r"    function answer\(qi, opt\) \{.*?\n    function showQuestion\(index\) \{"
+          replacement = '''    function answer(qi, opt) {
+            if (state[qi].selected !== null) return;
+            const q = questions[qi];
+            const options = [...q.querySelectorAll('.option')];
+            const selectedIndex = options.indexOf(opt);
+            const correctIndex = options.findIndex(o => o.dataset.correct === 'true');
+            state[qi] = { selected: selectedIndex, correct: selectedIndex === correctIndex };
+            options.forEach(o => o.classList.add('disabled'));
+            opt.classList.add('selected', state[qi].correct ? 'correct' : 'incorrect');
+            if (!state[qi].correct && correctIndex >= 0) options[correctIndex].classList.add('show-correct');
+
+            // NotebookLM-style review: after committing an answer, reveal the rationale
+            // for every option. Only the selected/correct cards receive colored status labels.
+            options.forEach((option, index) => {
+              const rationale = option.dataset.rationale || '';
+              if (index === selectedIndex) {
+                addFeedback(option, state[qi].correct ? 'correct' : 'incorrect', rationale,
+                  state[qi].correct ? "That's right!" : 'Not quite');
+              } else if (!state[qi].correct && index === correctIndex) {
+                addFeedback(option, 'correct', rationale, 'Correct answer');
+              } else {
+                addFeedback(option, 'neutral', rationale, '');
+              }
+            });
+            renderNav();
+            renderChrome();
+          }
+
+          function addFeedback(opt, type, rationale, label) {
+            if (opt.querySelector('.nlm-inline-feedback')) return;
+            const box = document.createElement('div');
+            box.className = 'nlm-inline-feedback ' + type;
+            box.innerHTML = '<div class="nlm-feedback-status"><span class="nlm-feedback-icon"></span><span class="nlm-feedback-label"></span></div><div class="nlm-rationale"></div>';
+            const status = box.querySelector('.nlm-feedback-status');
+            if (type === 'neutral') {
+              status.hidden = true;
+            } else {
+              status.classList.add(type);
+              box.querySelector('.nlm-feedback-icon').textContent = type === 'correct' ? '✓' : '✕';
+              box.querySelector('.nlm-feedback-label').textContent = label || (type === 'correct' ? 'Correct answer' : 'Not quite');
+            }
+            box.querySelector('.nlm-rationale').textContent = rationale;
+            if (!rationale.trim() && type === 'neutral') return;
+            opt.appendChild(box);
+          }
+
+          function showQuestion(index) {'''
+          s2, n = re.subn(pattern, replacement, s, flags=re.S)
+          if n != 1:
+            raise SystemExit(f'enhancer patch matched {n} blocks')
+          enhancer.write_text(s2, encoding='utf-8')
+
+          themes = Path('themes.js')
+          s = themes.read_text(encoding='utf-8')
+          needle = '.nlm-rationale{color:var(--nlm-text)}'
+          insert = needle + '.nlm-inline-feedback.neutral{color:var(--nlm-muted);opacity:.82}.nlm-inline-feedback.neutral .nlm-rationale{color:var(--nlm-muted)}'
+          if needle not in s:
+            raise SystemExit('theme rationale rule not found')
+          themes.write_text(s.replace(needle, insert, 1), encoding='utf-8')
+
+          app = Path('app.js')
+          s = app.read_text(encoding='utf-8')
+          s = s.replace("let activeTheme = 'nlm-dark';", "let activeTheme = 'nlm-dark';\nconst MAX_FILE_BYTES = 25 * 1024 * 1024;\nconst LARGE_FILE_WARNING_BYTES = 10 * 1024 * 1024;", 1)
+          s = s.replace("  if (file.size > 5 * 1024 * 1024) {\n    statusEl.textContent = 'That file is over 5 MB. Refusing it to avoid freezing the browser.';\n    return;\n  }", "  if (file.size > MAX_FILE_BYTES) {\n    statusEl.textContent = 'That file is over 25 MB. Split the quiz bank into smaller exports so the browser stays responsive.';\n    return;\n  }", 1)
+          s = s.replace("  fileMeta.textContent = detection.compatible ? `${detection.questions} questions · ${detection.rationales} explanations` : 'HTML loaded · compatibility uncertain';", "  const sizeMb = (file.size / (1024 * 1024)).toFixed(file.size >= 1024 * 1024 ? 1 : 2);\n  fileMeta.textContent = detection.compatible ? `${detection.questions} questions · ${detection.rationales} explanations · ${sizeMb} MB` : `HTML loaded · ${sizeMb} MB · compatibility uncertain`;", 1)
+          s = s.replace("  statusEl.textContent = detection.compatible ? 'Quiz structure detected. Active content will be sanitized before preview/export.' : 'Loaded, but the export structure looks different from the tested NotebookLM format.';", "  const largeWarning = file.size > LARGE_FILE_WARNING_BYTES ? ' Large file detected; preview/export may take a few seconds.' : '';\n  statusEl.textContent = detection.compatible ? 'Quiz structure detected. Active content will be sanitized before preview/export.' + largeWarning : 'Loaded, but the export structure looks different from the tested NotebookLM format.' + largeWarning;", 1)
+          app.write_text(s, encoding='utf-8')
+
+          readme = Path('README.md')
+          s = readme.read_text(encoding='utf-8')
+          s = s.replace('- Explanations embedded inside the relevant answer card', '- After answering, every option reveals its rationale; the selected/correct cards keep the green/red NotebookLM-style status', 1)
+          s = s.replace('6. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.', '6. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.\n\nLarge quiz banks are supported up to **25 MB per HTML file**; files above 10 MB show a performance warning rather than being rejected early.', 1)
+          readme.write_text(s, encoding='utf-8')
+
+          security = Path('SECURITY.md')
+          s = security.read_text(encoding='utf-8')
+          s = s.replace('Files larger than 5 MB are rejected to reduce accidental browser freezes.', 'Files larger than 25 MB are rejected to reduce accidental browser freezes; files over 10 MB show a performance warning.', 1)
+          security.write_text(s, encoding='utf-8')
+
+      - name: Validate JavaScript
+        run: |
+          node --check enhancer.js
+          node --check themes.js
+          node --check app.js
+
+      - name: Commit patch and remove temporary workflow
+        run: |
+          rm .github/workflows/apply-v4-feedback-and-cap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add enhancer.js themes.js app.js README.md SECURITY.md .github/workflows/apply-v4-feedback-and-cap.yml
+          git commit -m "Show all answer rationales and support larger quiz files"
+          git push
