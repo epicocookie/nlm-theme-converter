@@ -12,6 +12,9 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 - Wrong selections highlighted in red while also revealing the correct answer
 - After answering, every option reveals its rationale; the selected/correct cards keep the green/red NotebookLM-style status
 - Persistent answer state when moving between questions
+- Local progress resume across refresh/reopen for the same generated quiz
+- Converter restores the last imported quiz after its own page refresh
+- Restart the current run at any time from the quiz toolbar
 - Question navigator for jumping directly to any question
 - Previous / Next navigation
 - End-of-quiz score summary
@@ -23,7 +26,7 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 
 ## Privacy & security
 
-The quiz is processed entirely in your browser. There is no backend, account, analytics SDK, database, API key, or upload endpoint.
+The quiz is processed entirely in your browser. There is no backend, account, analytics SDK, database, API key, or upload endpoint. The converter may cache your last imported quiz in IndexedDB, and generated quizzes save answer progress in browser storage so they can resume locally. Clearing site/browser storage removes that saved state.
 
 Before previewing or exporting a quiz, Studio strips active content that the enhancer does not need, including scripts, embedded frames/objects, inline event handlers, remote stylesheet/resource hints, obvious scriptable/remote URLs, and remote CSS imports. The preview is additionally isolated in a sandboxed iframe.
 
@@ -59,6 +62,7 @@ index.html
 styles.css
 themes.js
 enhancer.js
+persistence.js
 app.js
 SECURITY.md
 .gitignore
