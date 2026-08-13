@@ -138,9 +138,15 @@ downloadBtn.addEventListener('click', () => {
 window.addEventListener('message', event => {
   if (event.source !== previewFrame.contentWindow) return;
   const data = event.data;
-  if (!data || data.type !== 'nlm-quiz-progress' || typeof data.quizId !== 'string') return;
+  if (!data || typeof data.quizId !== 'string') return;
   try {
     const key = PREVIEW_PROGRESS_PREFIX + data.quizId;
+    if (data.type === 'nlm-quiz-restart') {
+      localStorage.removeItem(key);
+      renderPreview();
+      return;
+    }
+    if (data.type !== 'nlm-quiz-progress') return;
     if (data.progress) localStorage.setItem(key, JSON.stringify(data.progress));
     else localStorage.removeItem(key);
   } catch (_) {}
