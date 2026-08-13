@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="Turn NotebookLM-style quiz exports into a cleaner study interface with review and question navigation." />
+  <title>NLM Quiz Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div class="brand-block">
+        <div class="brand-mark">N</div>
+        <div>
+          <strong>NLM Quiz Studio</strong>
+          <span>Local quiz enhancer</span>
+        </div>
+      </div>
+      <div class="privacy-pill">Runs locally · no uploads</div>
+    </header>
+
+    <section class="hero">
+      <span class="eyebrow">NotebookLM export → study mode</span>
+      <h1>Make the quiz feel like the quiz.</h1>
+      <p>Import the interactive HTML exported by your NotebookLM quiz extension. Studio keeps the questions and answers, then rebuilds the quiz experience around them: inline explanations, answer states, question jumping, and a real mistake review.</p>
+    </section>
+
+    <section class="workspace">
+      <aside class="control-panel">
+        <div class="step-head"><span>01</span><strong>Import HTML</strong></div>
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <div class="upload-icon">↑</div>
+          <strong>Drop your quiz here</strong>
+          <small>or choose an <code>.html</code> export</small>
+        </label>
+        <input id="fileInput" type="file" accept=".html,text/html" hidden />
+
+        <div class="file-card" id="fileCard" hidden>
+          <div>
+            <strong id="fileName"></strong>
+            <small id="fileMeta">Ready</small>
+          </div>
+          <span>✓</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="step-head"><span>02</span><strong>Output style</strong></div>
+        <div class="theme-list" id="themeList">
+          <button class="theme-card active" data-theme="nlm-dark">
+            <span class="theme-preview dark-preview"></span>
+            <span><strong>NLM Dark</strong><small>Closest to NotebookLM</small></span>
+          </button>
+          <button class="theme-card" data-theme="nlm-light">
+            <span class="theme-preview light-preview"></span>
+            <span><strong>NLM Light</strong><small>NotebookLM, brighter</small></span>
+          </button>
+          <button class="theme-card" data-theme="focus">
+            <span class="theme-preview focus-preview"></span>
+            <span><strong>Focus</strong><small>Notion × Linear</small></span>
+          </button>
+          <button class="theme-card" data-theme="midnight">
+            <span class="theme-preview midnight-preview"></span>
+            <span><strong>Midnight</strong><small>Deep high-contrast</small></span>
+          </button>
+          <button class="theme-card" data-theme="paper">
+            <span class="theme-preview paper-preview"></span>
+            <span><strong>Paper</strong><small>Warm textbook</small></span>
+          </button>
+          <button class="theme-card" data-theme="mint">
+            <span class="theme-preview mint-preview"></span>
+            <span><strong>Mint</strong><small>Calm study mode</small></span>
+          </button>
+        </div>
+
+        <div class="feature-list">
+          <div><span>✓</span> Explanation inside the chosen option</div>
+          <div><span>✓</span> Green correct / red wrong states</div>
+          <div><span>✓</span> Jump to any question</div>
+          <div><span>✓</span> Final mistake review</div>
+          <div><span>✓</span> Previous / next navigation</div>
+          <div><span>✓</span> Sanitizes imported active content</div>
+        </div>
+
+        <div class="actions">
+          <button class="button secondary" id="previewBtn" disabled>Refresh</button>
+          <button class="button primary" id="downloadBtn" disabled>Download enhanced HTML</button>
+        </div>
+        <p class="status" id="status">Waiting for a quiz export.</p>
+      </aside>
+
+      <section class="preview-panel">
+        <div class="browser-bar">
+          <div class="browser-dots"><i></i><i></i><i></i></div>
+          <span>live preview</span>
+          <span></span>
+        </div>
+        <div class="preview-empty" id="previewEmpty">
+          <div>
+            <strong>Your upgraded quiz appears here.</strong>
+            <p>The preview is sandboxed and the source file never leaves your browser.</p>
+          </div>
+        </div>
+        <iframe id="previewFrame" title="Enhanced quiz preview" sandbox="allow-scripts" hidden></iframe>
+      </section>
+    </section>
+
+    <footer>Unofficial utility. Not affiliated with Google or NotebookLM.</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
