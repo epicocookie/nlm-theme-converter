@@ -13,7 +13,7 @@ NLM Quiz Studio is a dependency-free, client-side utility. It does not require A
   - obvious remote or scriptable `src`/`href` values are removed;
   - remote CSS `@import` / `url(...)` references are stripped.
 - The enhanced quiz uses a freshly injected local quiz engine.
-- Files larger than 5 MB are rejected to reduce accidental browser freezes.
+- Files larger than 25 MB are rejected to reduce accidental browser freezes; files over 10 MB show a performance warning.
 - There are currently no third-party runtime dependencies.
 
 ## Secrets
