@@ -40,14 +40,14 @@ enhancerScript = function() {
   return baseEnhancerScriptV7()
     .replace(
       "const grid = backdrop.querySelector('.nlm-question-grid');",
-      "const grid = backdrop.querySelector('.nlm-question-grid');\\n    const progressFill = document.querySelector('.progress-fill');\\n    const headerMeta = document.querySelector('.header .meta');\\n    if (headerMeta) headerMeta.textContent = total + ' question' + (total === 1 ? '' : 's');"
+      "const grid = backdrop.querySelector('.nlm-question-grid');\n    const progressFill = document.querySelector('.progress-fill');\n    const headerMeta = document.querySelector('.header .meta');\n    if (headerMeta) headerMeta.textContent = total + ' question' + (total === 1 ? '' : 's');"
     )
     .replace(
       "counter.textContent = (current + 1) + '/' + total;",
-      "counter.textContent = (current + 1) + '/' + total;\\n      const currentNumber = questions[current]?.querySelector('.q-number');\\n      if (currentNumber) currentNumber.textContent = (current + 1) + '/' + total;\\n      if (progressFill) progressFill.style.width = (((current + 1) / Math.max(total, 1)) * 100).toFixed(2) + '%';"
+      "counter.textContent = (current + 1) + '/' + total;\n      const currentNumber = questions[current]?.querySelector('.q-number');\n      if (currentNumber) currentNumber.textContent = (current + 1) + '/' + total;\n      if (progressFill) progressFill.style.width = (((current + 1) / Math.max(total, 1)) * 100).toFixed(2) + '%';"
     )
     .replace(
       "const correctCount = state.filter(s => s.correct === true).length;",
-      "if (progressFill) progressFill.style.width = '100%';\\n      const correctCount = state.filter(s => s.correct === true).length;"
+      "if (progressFill) progressFill.style.width = '100%';\n      const correctCount = state.filter(s => s.correct === true).length;"
     );
 };
