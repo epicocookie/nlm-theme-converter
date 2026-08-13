@@ -67,6 +67,8 @@ If the project later adds an AI API, do not ship a provider secret in browser Ja
 ```text
 index.html
 styles.css
+themes.js
+enhancer.js
 app.js
 SECURITY.md
 .gitignore
