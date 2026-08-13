@@ -134,7 +134,7 @@ function enhancerScript() {
 
       const hero = document.createElement('div');
       hero.className = 'nlm-result-hero';
-      hero.innerHTML = '<small>Quiz complete</small><div class="nlm-score"></div><div class="nlm-result-summary"></div><div class="nlm-result-actions"><button class="nlm-nav-btn" data-result="restart">Try again</button><button class="nlm-nav-btn primary" data-result="review"></button></div>';
+      hero.innerHTML = '<small>Quiz complete</small><div class="nlm-score"></div><div class="nlm-result-summary"></div><div class="nlm-result-actions"><button class="nlm-nav-btn" data-result="restart">Try again</button><button class="nlm-nav-btn primary" data-result="review"></button><button class="nlm-nav-btn" data-result="pdf">Export Theory Repair PDF</button><button class="nlm-nav-btn" data-result="wrong-quiz">Create Wrong-Only Quiz</button></div>';
       hero.querySelector('.nlm-score').textContent = pct + '%';
       hero.querySelector('.nlm-result-summary').textContent = correctCount + ' correct · ' + wrong.length + ' wrong' + (unanswered.length ? ' · ' + unanswered.length + ' unanswered' : '');
       const reviewButton = hero.querySelector('[data-result="review"]');
@@ -177,7 +177,123 @@ function enhancerScript() {
       results.hidden = false;
       hero.querySelector('[data-result="restart"]').addEventListener('click', restart);
       reviewButton.addEventListener('click', () => showQuestion(wrong.length ? wrong[0].i : 0));
+      const pdfButton = hero.querySelector('[data-result="pdf"]');
+      const wrongQuizButton = hero.querySelector('[data-result="wrong-quiz"]');
+      pdfButton.disabled = !wrong.length;
+      wrongQuizButton.disabled = !wrong.length;
+      pdfButton.title = wrong.length ? 'Open the browser print dialog with only missed questions' : 'No wrong answers to export';
+      wrongQuizButton.title = wrong.length ? 'Download a fresh quiz containing only missed questions' : 'No wrong answers to retry';
+      pdfButton.addEventListener('click', () => exportTheoryRepair(wrong));
+      wrongQuizButton.addEventListener('click', () => downloadWrongOnlyQuiz(wrong));
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function getWrongDetails(wrong) {
+      return wrong.map(({s,i}) => {
+        const q = questions[i];
+        const opts = [...q.querySelectorAll('.option')];
+        const selected = opts[s.selected];
+        const correct = opts.find(o => o.dataset.correct === 'true');
+        return {
+          originalIndex: i,
+          question: q.querySelector('.q-text')?.textContent.trim() || '',
+          hint: q.querySelector('.hint-content')?.textContent.trim() || '',
+          selectedText: selected?.querySelector('.opt-text')?.textContent.trim() || '',
+          selectedWhy: selected?.dataset.rationale || '',
+          correctText: correct?.querySelector('.opt-text')?.textContent.trim() || '',
+          correctWhy: correct?.dataset.rationale || ''
+        };
+      });
+    }
+
+    function exportTheoryRepair(wrong) {
+      if (!wrong.length) return;
+      document.querySelector('.nlm-print-sheet')?.remove();
+      const sheet = document.createElement('section');
+      sheet.className = 'nlm-print-sheet';
+      const title = document.createElement('h1');
+      title.textContent = 'Theory Repair — Missed Questions';
+      sheet.appendChild(title);
+      const meta = document.createElement('p');
+      meta.className = 'nlm-print-meta';
+      meta.textContent = wrong.length + ' question' + (wrong.length === 1 ? '' : 's') + ' to repair';
+      sheet.appendChild(meta);
+
+      getWrongDetails(wrong).forEach((item) => {
+        const card = document.createElement('article');
+        card.className = 'nlm-print-card';
+        const number = document.createElement('div');
+        number.className = 'nlm-print-number';
+        number.textContent = 'QUESTION ' + (item.originalIndex + 1);
+        const q = document.createElement('h2');
+        q.textContent = item.question;
+        card.append(number, q);
+
+        const addRow = (label, text, cls) => {
+          if (!text) return;
+          const row = document.createElement('div');
+          row.className = 'nlm-print-row ' + (cls || '');
+          const b = document.createElement('b');
+          b.textContent = label;
+          const span = document.createElement('span');
+          span.textContent = text;
+          row.append(b, span);
+          card.appendChild(row);
+        };
+
+        addRow('Your answer', item.selectedText, 'wrong');
+        addRow('Why it missed', item.selectedWhy, 'wrong-note');
+        addRow('Correct answer', item.correctText, 'correct');
+        addRow('Core explanation', item.correctWhy, 'explanation');
+        addRow('Recall cue', item.hint, 'hint');
+        const prompt = document.createElement('div');
+        prompt.className = 'nlm-repair-prompt';
+        prompt.textContent = 'Repair prompt: Explain the distinction in your own words, then state the trap that made the wrong option tempting.';
+        card.appendChild(prompt);
+        sheet.appendChild(card);
+      });
+
+      document.body.appendChild(sheet);
+      const cleanup = () => {
+        sheet.remove();
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      window.print();
+      setTimeout(() => { if (document.body.contains(sheet)) cleanup(); }, 30000);
+    }
+
+    function downloadWrongOnlyQuiz(wrong) {
+      if (!wrong.length) return;
+      const wrongSet = new Set(wrong.map(x => x.i));
+      const doc = new DOMParser().parseFromString('<!doctype html>\\n' + document.documentElement.outerHTML, 'text/html');
+      doc.querySelectorAll('.nlm-topbar,.nlm-footer-nav,.nlm-drawer-backdrop,.nlm-results,.nlm-print-sheet').forEach(el => el.remove());
+      const quizContainer = doc.getElementById('quiz-container');
+      if (quizContainer) quizContainer.style.removeProperty('display');
+      [...doc.querySelectorAll('.question')].forEach((q, i) => {
+        if (!wrongSet.has(i)) {
+          q.remove();
+          return;
+        }
+        q.classList.remove('active');
+        q.removeAttribute('data-nlm-index');
+        q.querySelectorAll('.nlm-inline-feedback').forEach(el => el.remove());
+        q.querySelectorAll('.option').forEach(opt => {
+          opt.classList.remove('selected','correct','incorrect','disabled','show-correct');
+        });
+      });
+      doc.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+      const title = doc.querySelector('title');
+      if (title) title.textContent = 'Wrong-Only Review Quiz';
+      const blob = new Blob(['<!doctype html>\\n' + doc.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'wrong-only-quiz-' + wrong.length + '-questions.html';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function restart() {
