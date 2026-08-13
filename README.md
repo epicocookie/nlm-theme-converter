@@ -10,7 +10,7 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 - Six themes: **NLM Dark, NLM Light, Focus, Midnight, Paper, Mint**
 - Correct answers highlighted in green
 - Wrong selections highlighted in red while also revealing the correct answer
-- Explanations embedded inside the relevant answer card
+- After answering, every option reveals its rationale; the selected/correct cards keep the green/red NotebookLM-style status
 - Persistent answer state when moving between questions
 - Question navigator for jumping directly to any question
 - Previous / Next navigation
@@ -37,6 +37,8 @@ This hardening is designed for the expected NotebookLM-style quiz export format;
 4. Preview the result.
 5. Download the enhanced standalone HTML file.
 6. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.
+
+Large quiz banks are supported up to **25 MB per HTML file**; files above 10 MB show a performance warning rather than being rejected early.
 
 ## Compatibility
 

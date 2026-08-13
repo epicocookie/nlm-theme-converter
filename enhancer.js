@@ -52,38 +52,52 @@ function enhancerScript() {
     });
 
     function answer(qi, opt) {
-      if (state[qi].selected !== null) return;
-      const q = questions[qi];
-      const options = [...q.querySelectorAll('.option')];
-      const selectedIndex = options.indexOf(opt);
-      const correctIndex = options.findIndex(o => o.dataset.correct === 'true');
-      state[qi] = { selected: selectedIndex, correct: selectedIndex === correctIndex };
-      options.forEach(o => o.classList.add('disabled'));
-      opt.classList.add('selected', state[qi].correct ? 'correct' : 'incorrect');
-      addFeedback(opt, state[qi].correct ? 'correct' : 'incorrect', opt.dataset.rationale || '');
-      if (!state[qi].correct && correctIndex >= 0) {
-        const correctOpt = options[correctIndex];
-        correctOpt.classList.add('show-correct');
-        addFeedback(correctOpt, 'correct', correctOpt.dataset.rationale || '');
-      }
-      renderNav();
-      renderChrome();
-    }
+  if (state[qi].selected !== null) return;
+  const q = questions[qi];
+  const options = [...q.querySelectorAll('.option')];
+  const selectedIndex = options.indexOf(opt);
+  const correctIndex = options.findIndex(o => o.dataset.correct === 'true');
+  state[qi] = { selected: selectedIndex, correct: selectedIndex === correctIndex };
+  options.forEach(o => o.classList.add('disabled'));
+  opt.classList.add('selected', state[qi].correct ? 'correct' : 'incorrect');
+  if (!state[qi].correct && correctIndex >= 0) options[correctIndex].classList.add('show-correct');
 
-    function addFeedback(opt, type, rationale) {
-      if (opt.querySelector('.nlm-inline-feedback')) return;
-      const box = document.createElement('div');
-      box.className = 'nlm-inline-feedback';
-      box.innerHTML = '<div class="nlm-feedback-status"><span class="nlm-feedback-icon"></span><span class="nlm-feedback-label"></span></div><div class="nlm-rationale"></div>';
-      const status = box.querySelector('.nlm-feedback-status');
-      status.classList.add(type);
-      box.querySelector('.nlm-feedback-icon').textContent = type === 'correct' ? '✓' : '✕';
-      box.querySelector('.nlm-feedback-label').textContent = type === 'correct' ? "That's right!" : 'Not quite';
-      box.querySelector('.nlm-rationale').textContent = rationale;
-      opt.appendChild(box);
+  // NotebookLM-style review: after committing an answer, reveal the rationale
+  // for every option. Only the selected/correct cards receive colored status labels.
+  options.forEach((option, index) => {
+    const rationale = option.dataset.rationale || '';
+    if (index === selectedIndex) {
+      addFeedback(option, state[qi].correct ? 'correct' : 'incorrect', rationale,
+        state[qi].correct ? "That's right!" : 'Not quite');
+    } else if (!state[qi].correct && index === correctIndex) {
+      addFeedback(option, 'correct', rationale, 'Correct answer');
+    } else {
+      addFeedback(option, 'neutral', rationale, '');
     }
+  });
+  renderNav();
+  renderChrome();
+}
 
-    function showQuestion(index) {
+function addFeedback(opt, type, rationale, label) {
+  if (opt.querySelector('.nlm-inline-feedback')) return;
+  const box = document.createElement('div');
+  box.className = 'nlm-inline-feedback ' + type;
+  box.innerHTML = '<div class="nlm-feedback-status"><span class="nlm-feedback-icon"></span><span class="nlm-feedback-label"></span></div><div class="nlm-rationale"></div>';
+  const status = box.querySelector('.nlm-feedback-status');
+  if (type === 'neutral') {
+    status.hidden = true;
+  } else {
+    status.classList.add(type);
+    box.querySelector('.nlm-feedback-icon').textContent = type === 'correct' ? '✓' : '✕';
+    box.querySelector('.nlm-feedback-label').textContent = label || (type === 'correct' ? 'Correct answer' : 'Not quite');
+  }
+  box.querySelector('.nlm-rationale').textContent = rationale;
+  if (!rationale.trim() && type === 'neutral') return;
+  opt.appendChild(box);
+}
+
+function showQuestion(index) {
       inResults = false;
       results.hidden = true;
       const quizContainer = document.getElementById('quiz-container');
