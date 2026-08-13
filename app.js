@@ -15,10 +15,69 @@ let sourceName = 'quiz.html';
 let activeTheme = 'nlm-dark';
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const LARGE_FILE_WARNING_BYTES = 10 * 1024 * 1024;
+const WORKSPACE_DB_NAME = 'nlm-quiz-studio';
+const WORKSPACE_STORE = 'workspace';
+const WORKSPACE_KEY = 'last-imported-quiz';
+const PREVIEW_PROGRESS_PREFIX = 'nlm-preview-progress:';
+const THEME_STORAGE_KEY = 'nlm-studio-theme';
+
+function openWorkspaceDb() {
+  return new Promise((resolve, reject) => {
+    if (!('indexedDB' in window)) return reject(new Error('IndexedDB unavailable'));
+    const request = indexedDB.open(WORKSPACE_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(WORKSPACE_STORE)) db.createObjectStore(WORKSPACE_STORE, { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error('IndexedDB open failed'));
+  });
+}
+
+async function cacheWorkspace() {
+  if (!sourceHtml) return;
+  try {
+    const db = await openWorkspaceDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(WORKSPACE_STORE, 'readwrite');
+      tx.objectStore(WORKSPACE_STORE).put({ id: WORKSPACE_KEY, sourceHtml, sourceName, savedAt: Date.now() });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    db.close();
+  } catch (_) {}
+}
+
+async function readCachedWorkspace() {
+  try {
+    const db = await openWorkspaceDb();
+    const value = await new Promise((resolve, reject) => {
+      const tx = db.transaction(WORKSPACE_STORE, 'readonly');
+      const request = tx.objectStore(WORKSPACE_STORE).get(WORKSPACE_KEY);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+    db.close();
+    return value;
+  } catch (_) {
+    return null;
+  }
+}
+
+function readPreviewProgress(quizId) {
+  try {
+    const raw = localStorage.getItem(PREVIEW_PROGRESS_PREFIX + quizId);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
 
 function renderPreview() {
   if (!sourceHtml) return;
-  previewFrame.srcdoc = enhanceHtml(sourceHtml);
+  const quizId = quizFingerprint(sourceHtml);
+  previewFrame.srcdoc = enhanceHtml(sourceHtml, readPreviewProgress(quizId));
   previewFrame.hidden = false;
   previewEmpty.hidden = true;
 }
@@ -43,6 +102,8 @@ async function loadFile(file) {
   downloadBtn.disabled = false;
   const largeWarning = file.size > LARGE_FILE_WARNING_BYTES ? ' Large file detected; preview/export may take a few seconds.' : '';
   statusEl.textContent = detection.compatible ? 'Quiz structure detected. Active content will be sanitized before preview/export.' + largeWarning : 'Loaded, but the export structure looks different from the tested NotebookLM format.' + largeWarning;
+  await cacheWorkspace();
+  try { localStorage.setItem(THEME_STORAGE_KEY, activeTheme); } catch (_) {}
   renderPreview();
 }
 
@@ -56,6 +117,7 @@ themeList.addEventListener('click', e => {
   if (!btn) return;
   activeTheme = btn.dataset.theme;
   themeList.querySelectorAll('.theme-card').forEach(b => b.classList.toggle('active', b === btn));
+  try { localStorage.setItem(THEME_STORAGE_KEY, activeTheme); } catch (_) {}
   if (sourceHtml) renderPreview();
 });
 
@@ -72,3 +134,41 @@ downloadBtn.addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   statusEl.textContent = 'Enhanced quiz downloaded.';
 });
+
+window.addEventListener('message', event => {
+  if (event.source !== previewFrame.contentWindow) return;
+  const data = event.data;
+  if (!data || data.type !== 'nlm-quiz-progress' || typeof data.quizId !== 'string') return;
+  try {
+    const key = PREVIEW_PROGRESS_PREFIX + data.quizId;
+    if (data.progress) localStorage.setItem(key, JSON.stringify(data.progress));
+    else localStorage.removeItem(key);
+  } catch (_) {}
+});
+
+async function restoreCachedWorkspace() {
+  const cached = await readCachedWorkspace();
+  if (!cached?.sourceHtml) return;
+  sourceHtml = cached.sourceHtml;
+  sourceName = cached.sourceName || 'quiz.html';
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme && THEMES[savedTheme]) activeTheme = savedTheme;
+  } catch (_) {}
+  themeList.querySelectorAll('.theme-card').forEach(b => b.classList.toggle('active', b.dataset.theme === activeTheme));
+  const detection = detectQuiz(sourceHtml);
+  fileName.textContent = sourceName;
+  const sizeMb = (new Blob([sourceHtml]).size / (1024 * 1024)).toFixed(2);
+  fileMeta.textContent = detection.compatible
+    ? `${detection.questions} questions · ${detection.rationales} explanations · ${sizeMb} MB`
+    : `Cached HTML · ${sizeMb} MB · compatibility uncertain`;
+  fileCard.hidden = false;
+  previewBtn.disabled = false;
+  downloadBtn.disabled = false;
+  statusEl.textContent = detection.compatible
+    ? 'Restored your last quiz from this browser. Saved quiz progress will resume automatically.'
+    : 'Restored your last HTML file, but its quiz structure looks unfamiliar.';
+  renderPreview();
+}
+
+restoreCachedWorkspace();
