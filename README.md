@@ -16,6 +16,8 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 - Previous / Next navigation
 - End-of-quiz score summary
 - Dedicated mistake review with your answer, the correct answer, and explanation
+- Export missed questions as a print-ready **Theory Repair PDF**
+- Generate a fresh standalone **wrong-only quiz** from missed questions
 - One-click jump from the review screen back to a missed question
 - Left / Right keyboard navigation and Escape to close the question navigator
 
@@ -34,6 +36,7 @@ This hardening is designed for the expected NotebookLM-style quiz export format;
 3. Pick a theme.
 4. Preview the result.
 5. Download the enhanced standalone HTML file.
+6. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.
 
 ## Compatibility
 
@@ -46,21 +49,6 @@ The enhancer is designed around exports containing these class/data patterns:
 - `.opt-text`
 
 The original quiz engine is removed and replaced with Studio's navigation/review engine.
-
-## Security / hygiene audit
-
-Current state:
-
-- **Secrets:** none required or present
-- **`.env`:** ignored by `.gitignore` for future-proofing
-- **Dependencies:** none
-- **Build step:** none
-- **Backend / database:** none
-- **Imported HTML:** sanitized before preview/export
-- **Preview:** sandboxed iframe
-- **Input validation:** `.html` only, 5 MB size cap, structural compatibility check
-
-If the project later adds an AI API, do not ship a provider secret in browser JavaScript. Put privileged API calls behind a server-side boundary and keep the real secret out of the client bundle.
 
 ## Development
 
