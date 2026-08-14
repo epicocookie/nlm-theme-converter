@@ -8,6 +8,8 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 
 - NotebookLM-style quiz interaction instead of only changing CSS
 - Six themes: **NLM Dark, NLM Light, Focus, Midnight, Paper, Mint**
+- Theme-consistent typography, including Paper and math-marked answer text
+- Conservative cleanup for common LaTeX-style `\text{...}` and flattened `text...` artifacts in formula-like quiz content
 - Correct answers highlighted in green
 - Wrong selections highlighted in red while also revealing the correct answer
 - After answering, every option reveals its rationale; the selected/correct cards keep the green/red NotebookLM-style status
@@ -53,7 +55,7 @@ The enhancer is designed around exports containing these class/data patterns:
 - `.option[data-rationale]`
 - `.opt-text`
 
-The original quiz engine is removed and replaced with Studio's navigation/review engine.
+The original quiz engine is removed and replaced with Studio's navigation/review engine. Formula cleanup is intentionally conservative; Studio repairs common text-command artifacts but is not a full LaTeX renderer.
 
 ## Development
 
@@ -62,7 +64,9 @@ index.html
 styles.css
 themes.js
 enhancer.js
+design-v7.js
 persistence.js
+v8-fixes.js
 app.js
 SECURITY.md
 .gitignore
