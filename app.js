@@ -19,6 +19,7 @@ const WORKSPACE_DB_NAME = 'nlm-quiz-studio';
 const WORKSPACE_STORE = 'workspace';
 const WORKSPACE_KEY = 'last-imported-quiz';
 const PREVIEW_PROGRESS_PREFIX = 'nlm-preview-progress:';
+const PREVIEW_ORDER_PREFIX = 'nlm-preview-order:';
 const THEME_STORAGE_KEY = 'nlm-studio-theme';
 
 function openWorkspaceDb() {
@@ -74,10 +75,19 @@ function readPreviewProgress(quizId) {
   }
 }
 
+function readPreviewOrder(quizId) {
+  try {
+    const raw = localStorage.getItem(PREVIEW_ORDER_PREFIX + quizId);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function renderPreview() {
   if (!sourceHtml) return;
   const quizId = quizFingerprint(sourceHtml);
-  previewFrame.srcdoc = enhanceHtml(sourceHtml, readPreviewProgress(quizId));
+  previewFrame.srcdoc = enhanceHtml(sourceHtml, readPreviewProgress(quizId), readPreviewOrder(quizId));
   previewFrame.hidden = false;
   previewEmpty.hidden = true;
 }
@@ -124,7 +134,8 @@ themeList.addEventListener('click', e => {
 previewBtn.addEventListener('click', renderPreview);
 downloadBtn.addEventListener('click', () => {
   if (!sourceHtml) return;
-  const output = enhanceHtml(sourceHtml);
+  const quizId = quizFingerprint(sourceHtml);
+  const output = enhanceHtml(sourceHtml, null, readPreviewOrder(quizId));
   const blob = new Blob([output], { type:'text/html;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -142,6 +153,12 @@ window.addEventListener('message', event => {
   try {
     const key = PREVIEW_PROGRESS_PREFIX + data.quizId;
     if (data.type === 'nlm-quiz-restart') {
+      localStorage.removeItem(key);
+      renderPreview();
+      return;
+    }
+    if (data.type === 'nlm-quiz-shuffle') {
+      if (Array.isArray(data.order)) localStorage.setItem(PREVIEW_ORDER_PREFIX + data.quizId, JSON.stringify(data.order.map(String)));
       localStorage.removeItem(key);
       renderPreview();
       return;
