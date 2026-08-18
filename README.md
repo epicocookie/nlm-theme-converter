@@ -17,6 +17,8 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 - Local progress resume across refresh/reopen for the same generated quiz
 - Converter restores the last imported quiz after its own page refresh
 - Restart the current run at any time from the quiz toolbar
+- **Shuffle questions** into a fresh run while keeping answer choices unchanged
+- Shuffled question order persists across refresh/reopen; Restart keeps the current order while Shuffle creates a new one
 - Question navigator for jumping directly to any question
 - Previous / Next navigation
 - End-of-quiz score summary
@@ -28,7 +30,7 @@ A local-first browser utility that upgrades interactive NotebookLM-style quiz HT
 
 ## Privacy & security
 
-The quiz is processed entirely in your browser. There is no backend, account, analytics SDK, database, API key, or upload endpoint. The converter may cache your last imported quiz in IndexedDB, and generated quizzes save answer progress in browser storage so they can resume locally. Clearing site/browser storage removes that saved state.
+The quiz is processed entirely in your browser. There is no backend, account, analytics SDK, database, API key, or upload endpoint. The converter may cache your last imported quiz in IndexedDB, and generated quizzes save answer progress and optional shuffled order in browser storage so they can resume locally. Clearing site/browser storage removes that saved state.
 
 Before previewing or exporting a quiz, Studio strips active content that the enhancer does not need, including scripts, embedded frames/objects, inline event handlers, remote stylesheet/resource hints, obvious scriptable/remote URLs, and remote CSS imports. The preview is additionally isolated in a sandboxed iframe.
 
@@ -41,7 +43,8 @@ This hardening is designed for the expected NotebookLM-style quiz export format;
 3. Pick a theme.
 4. Preview the result.
 5. Download the enhanced standalone HTML file.
-6. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.
+6. Use **Shuffle** whenever you want a fresh randomized question order.
+7. After the quiz, export missed questions to PDF or generate a wrong-only retry quiz.
 
 Large quiz banks are supported up to **25 MB per HTML file**; files above 10 MB show a performance warning rather than being rejected early.
 
@@ -67,6 +70,8 @@ enhancer.js
 design-v7.js
 persistence.js
 v8-fixes.js
+v8-1-fixes.js
+v8-2-shuffle.js
 app.js
 SECURITY.md
 .gitignore
